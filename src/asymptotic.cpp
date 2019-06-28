@@ -421,7 +421,7 @@ Rcpp::List long_asy_c(const arma::rowvec &gamma,
 
           temp_X_diff = XXtbar_temp.slice(j) - Xbar_temp.row(j).t() * Xbar_temp.row(j);
 
-          Bmat = Bmat - temp_kermat(j, k) * temp_X_diff;
+          Bmat = Bmat - temp_kermat(j, k) * temp_response(j) * temp_X_diff;
 
           //temp_X_diff = X_temp - trans(Xbar_temp.row(j));
           ////================= PART 1 ===================////

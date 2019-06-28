@@ -225,8 +225,6 @@ estasy <- function(dataset, kerFun, h, n, p) {
              response_list,
              longest_res[[1]],
              gammaest_res$x,
-             lambda_persub,
-             longest_res[[2]],
              n,
              p,h)
 
