@@ -164,6 +164,7 @@ arma::vec ugamma2_pur_C(const arma::rowvec& gamma,
 
       den_temp += temp_kermat * expZ_list(l).t() % censorind;
     }
+
     temp_kermat = mat(kerMat[i * n + i].begin(),kerMat[i * n + i].nrow(),kerMat[i * n + i].ncol(),false);
     zbar_temp_i.each_col() /= den_temp;
     res += pur_weights(i) * zbar_temp_i.t() * sum(temp_kermat,1);

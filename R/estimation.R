@@ -245,6 +245,56 @@ estasy <- function(dataset, kerFun, h, n, p) {
   )
 }
 
+
+estasy_Cao <- function(dataset, kerFun, h, n, p) {
+  # transform data
+  covar_list <- lapply(dataset, function(x)
+    x[["covariates"]])
+  meas_obs_list <- lapply(dataset, function(x)
+    x[["meas_times"]])
+  obscov_times_list <-
+    lapply(dataset, function(x)
+      x[["obscov_times"]])
+  censor_list <- sapply(dataset, function(x)
+    x[["censoring"]])
+
+  response_list <- sapply(dataset, function(x)
+    x[["Y"]])
+
+  # R realization, slow
+  #kerMat <- apply(expand.grid(1:n,1:n),1, function(ind) kernelh(outermin_C(dataset[[ind[2]]][[2]],dataset[[ind[1]]][[4]]),h))
+
+  kerMat <- kerMatgen_C(meas_obs_list, obscov_times_list, h)
+
+
+
+
+
+  longest_res <- longest_Cao_c(
+    kerMat = kerMat,
+    meas_times = meas_obs_list,
+    covariates = covar_list,
+    response = response_list,
+    censor = censor_list,
+    n,
+    p
+  )
+
+  varest = longest_res[[2]]
+  thetahat <- longest_res[[1]]
+
+  CI_theta <- rbind(as.vector(thetahat) + cbind(-1 * qnorm(0.975) * sqrt(diag(varest)), qnorm(0.975) * sqrt(diag(varest))))
+
+  rm(kerMat)
+  return(
+    list(
+
+      thetaest = thetahat ,
+      CI_theta = CI_theta
+    )
+  )
+}
+
 #============ Purturbation ==========================
 
 gammaest_pur <-

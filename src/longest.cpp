@@ -321,6 +321,126 @@ Rcpp::List longest_pur_c(const arma::rowvec & gamma,
   //                             Rcpp::Named("temp1") = thetanum  );
 }
 
+
+// [[Rcpp::export]]
+Rcpp::List longest_Cao_c(Rcpp::ListOf < NumericMatrix > & kerMat,
+                         Rcpp::ListOf < NumericVector > & meas_times,
+                         Rcpp::ListOf < NumericMatrix > & covariates,
+                         Rcpp::ListOf < NumericVector > & response,
+                         const arma::vec & censor,
+                         const unsigned int & n,
+                         const unsigned int & p) {
+  unsigned int i = 0;
+  arma::mat temp_kermat;
+
+  arma::rowvec expgammaZ;
+  arma::field < arma::rowvec > expgamZ_list(n);
+  arma::field < arma::mat > Xbar_list(n);
+  arma::field < arma::mat > KerexpgamZ_list(n * n);
+  arma::field < arma::cube > Xmat_list(n * n), KerXexpgamZ_list(n * n),  XXtbar_list(n);
+  arma::vec temp_meas_time_i, temp_meas_time_l, temp_countprocess_l;
+  arma::vec censorind, temp_response;
+
+  unsigned int j, k, Jn, Kn;
+  // Rcpp::Rcout <<  "start" <<endl;
+  // Calculate Xbar and XXtbar
+  // arma::cube Xmat_temp;
+  arma::mat temp_cov;
+
+  //Rcpp::Rcout <<  "00" <<endl;
+  arma::vec temp_X = vec(p + 1, arma::fill::zeros);
+  arma::vec thetanum = vec(p + 1, arma::fill::zeros);
+  arma::mat thetaden = mat(p + 1, p + 1, arma::fill::zeros);
+
+  arma::mat Bmat = mat(p + 1, p + 1, arma::fill::zeros);
+  arma::vec tempB = vec(p + 1, arma::fill::zeros);
+
+  double sumK, sumKY;
+  arma::vec sumKX = vec(p + 1, arma::fill::zeros);
+  arma::vec sumKXY = vec(p + 1, arma::fill::zeros);
+  arma::mat sumKXXt = mat(p + 1, p + 1, arma::fill::zeros);
+  // Rcpp::Rcout <<  "11" <<endl;
+  // Calculate \hat{theta}
+  sumK = 0;
+  sumKY = 0;
+  // Get \hat{theta}
+  //Rcpp::Rcout <<  "01" <<endl;
+  for (i = 0; i < n; i++) {
+    //Rcpp::Rcout <<  "02" <<endl;
+    //Rcpp::Rcout <<  i  <<endl;
+    temp_response = vec(response[i].begin(), response[i].size(), false);
+    //Rcpp::Rcout <<  "temp_response" << temp_response << endl;
+
+    // temp_thetanum_part1 = vec(p+1,arma::fill::zeros);
+    // Rcpp::Rcout <<  "22" <<endl;
+    temp_cov = mat(covariates[i].begin(), covariates[i].nrow(),
+                   covariates[i].ncol(), false);
+    temp_kermat = mat(kerMat[i * n + i].begin(), kerMat[i * n + i].nrow(),
+                      kerMat[i * n + i].ncol(), false);
+    sumK += accu(temp_kermat);
+    //Rcpp::Rcout <<  temp_kermat <<endl;
+    Jn = temp_kermat.n_rows;
+
+    Kn = temp_cov.n_cols;
+
+      for (j = 0; j < Jn; j++) {
+        for (k = 0; k < Kn; k++) {
+          //Rcpp::Rcout <<  "inner" <<endl;
+          //Rcpp::Rcout <<  i << " "<< j << " " << k  <<endl;
+          temp_X.head(p) = temp_cov.col(k);
+          temp_X(p) = j;
+
+          sumKX += temp_kermat(j, k) * temp_X;
+
+          sumKXXt += temp_kermat(j, k) * temp_X * temp_X.t();
+
+          sumKXY += temp_kermat(j, k) * temp_X * temp_response(j);
+          sumKY += temp_kermat(j, k) * temp_response(j);
+        }
+      }
+    }
+
+  //Rcpp::Rcout <<  "sumKX" << sumKX << endl;
+  //Rcpp::Rcout <<  "sumKXXt" << sumKXXt << endl;
+  ////Rcpp::Rcout <<  "sumKXY" << sumKXY << endl;
+  //Rcpp::Rcout <<  "sumKY" << sumKY << endl;
+
+  thetanum = sumKXY-sumKX*sumKY / sumK;
+  thetaden = sumKXXt-sumKX * sumKX.t() / sumK;
+  //Rcpp::Rcout <<  "thetaden" << thetaden << endl;
+  arma::vec thetaest = inv_sympd(thetaden) * thetanum;
+
+  // Get Bmat
+  //Rcpp::Rcout <<  "03" <<endl;
+  for (i = 0; i < n; i++) {
+    temp_response = vec(response[i].begin(), response[i].size(), false);
+
+    // temp_thetanum_part1 = vec(p+1,arma::fill::zeros);
+    // Rcpp::Rcout <<  "22" <<endl;
+    temp_cov = mat(covariates[i].begin(), covariates[i].nrow(),
+                   covariates[i].ncol(), false);
+    temp_kermat = mat(kerMat[i * n + i].begin(), kerMat[i * n + i].nrow(),
+                      kerMat[i * n + i].ncol(), false);
+    sumK += accu(temp_kermat);
+    Jn = temp_cov.n_rows;
+    Kn = temp_cov.n_cols;
+
+    for (j = 0; j < Jn; j++) {
+      for (k = 0; k < Kn; k++) {
+        temp_X.head(p) = temp_cov.col(k);
+        temp_X(p) = j;
+        tempB = temp_kermat(j, k) * temp_X * (temp_response(j) - sumKY / sumK - as_scalar(thetaest.t() * (temp_X - sumKX / sumK) ));
+        Bmat += tempB * tempB.t();
+
+      }
+    }
+  }
+
+
+  return Rcpp::List::create(Rcpp::Named("thetaest") = thetaest,
+                            Rcpp::Named("Vartheta") = inv_sympd(thetaden) * Bmat * inv_sympd(thetaden));
+}
+
 //==============================================================================================
 
 

@@ -41,6 +41,10 @@ longest_pur_c <- function(gamma, kerMat, meas_times, covariates, response, dlamb
     .Call(`_asynlong_longest_pur_c`, gamma, kerMat, meas_times, covariates, response, dlambda, censor, n, p, pur_weights)
 }
 
+longest_Cao_c <- function(kerMat, meas_times, covariates, response, censor, n, p) {
+    .Call(`_asynlong_longest_Cao_c`, kerMat, meas_times, covariates, response, censor, n, p)
+}
+
 optimtest <- function(z_in, gamma_in) {
     .Call(`_asynlong_optimtest`, z_in, gamma_in)
 }
