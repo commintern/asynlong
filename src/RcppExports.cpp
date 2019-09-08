@@ -220,6 +220,23 @@ BEGIN_RCPP
     return rcpp_result_gen;
 END_RCPP
 }
+// longest_Cao_full_c
+Rcpp::List longest_Cao_full_c(Rcpp::ListOf < NumericMatrix >& kerMat, Rcpp::ListOf < NumericVector >& meas_times, Rcpp::ListOf < NumericMatrix >& covariates, Rcpp::ListOf < NumericVector >& response, const arma::vec& censor, const unsigned int& n, const unsigned int& p);
+RcppExport SEXP _asynlong_longest_Cao_full_c(SEXP kerMatSEXP, SEXP meas_timesSEXP, SEXP covariatesSEXP, SEXP responseSEXP, SEXP censorSEXP, SEXP nSEXP, SEXP pSEXP) {
+BEGIN_RCPP
+    Rcpp::RObject rcpp_result_gen;
+    Rcpp::RNGScope rcpp_rngScope_gen;
+    Rcpp::traits::input_parameter< Rcpp::ListOf < NumericMatrix >& >::type kerMat(kerMatSEXP);
+    Rcpp::traits::input_parameter< Rcpp::ListOf < NumericVector >& >::type meas_times(meas_timesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::ListOf < NumericMatrix >& >::type covariates(covariatesSEXP);
+    Rcpp::traits::input_parameter< Rcpp::ListOf < NumericVector >& >::type response(responseSEXP);
+    Rcpp::traits::input_parameter< const arma::vec& >::type censor(censorSEXP);
+    Rcpp::traits::input_parameter< const unsigned int& >::type n(nSEXP);
+    Rcpp::traits::input_parameter< const unsigned int& >::type p(pSEXP);
+    rcpp_result_gen = Rcpp::wrap(longest_Cao_full_c(kerMat, meas_times, covariates, response, censor, n, p));
+    return rcpp_result_gen;
+END_RCPP
+}
 // optimtest
 arma::vec optimtest(const arma::vec& z_in, const arma::vec& gamma_in);
 RcppExport SEXP _asynlong_optimtest(SEXP z_inSEXP, SEXP gamma_inSEXP) {
@@ -393,6 +410,7 @@ static const R_CallMethodDef CallEntries[] = {
     {"_asynlong_longest_c", (DL_FUNC) &_asynlong_longest_c, 9},
     {"_asynlong_longest_pur_c", (DL_FUNC) &_asynlong_longest_pur_c, 10},
     {"_asynlong_longest_Cao_c", (DL_FUNC) &_asynlong_longest_Cao_c, 7},
+    {"_asynlong_longest_Cao_full_c", (DL_FUNC) &_asynlong_longest_Cao_full_c, 7},
     {"_asynlong_optimtest", (DL_FUNC) &_asynlong_optimtest, 2},
     {"_asynlong_ugamma1_C", (DL_FUNC) &_asynlong_ugamma1_C, 4},
     {"_asynlong_ugamma2_C", (DL_FUNC) &_asynlong_ugamma2_C, 7},

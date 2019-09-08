@@ -270,7 +270,7 @@ estasy_Cao <- function(dataset, kerFun, h, n, p) {
 
 
 
-  longest_res <- longest_Cao_c(
+  longest_res <- longest_Cao_full_c(
     kerMat = kerMat,
     meas_times = meas_obs_list,
     covariates = covar_list,
