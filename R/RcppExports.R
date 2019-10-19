@@ -13,18 +13,6 @@ long_asy_c <- function(gamma, theta, kerMat, meas_times, covariates, Xbar, XXtba
     .Call(`_asynlong_long_asy_c`, gamma, theta, kerMat, meas_times, covariates, Xbar, XXtbar, response, Hmat, Amat, censor, n, p)
 }
 
-EE_c <- function(gamma, theta, kerMat, meas_times, covariates, Xbar, XXtbar, response, Hmat, Amat, censor, n, p) {
-    .Call(`_asynlong_EE_c`, gamma, theta, kerMat, meas_times, covariates, Xbar, XXtbar, response, Hmat, Amat, censor, n, p)
-}
-
-EEZ_c <- function(gamma, theta, kerMat, meas_times, covariates, Xbar, XXtbar, response, Hmat, Amat, censor, n, p) {
-    .Call(`_asynlong_EEZ_c`, gamma, theta, kerMat, meas_times, covariates, Xbar, XXtbar, response, Hmat, Amat, censor, n, p)
-}
-
-EEZV_c <- function(gamma, theta, kerMat, meas_times, covariates, Xbar, XXtbar, response, Hmat, Amat, censor, n, p) {
-    .Call(`_asynlong_EEZV_c`, gamma, theta, kerMat, meas_times, covariates, Xbar, XXtbar, response, Hmat, Amat, censor, n, p)
-}
-
 countprofun_C <- function(counttime, externalTime) {
     .Call(`_asynlong_countprofun_C`, counttime, externalTime)
 }
