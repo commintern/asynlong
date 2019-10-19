@@ -3,7 +3,7 @@
 
 #include <iostream>
 
-
+#include "longest.hpp"
 using namespace arma;
 using namespace Rcpp;
 using namespace std;
@@ -77,7 +77,8 @@ Rcpp::List longest_c(const arma::rowvec & gamma,
                      Rcpp::ListOf < NumericVector > & dlambda,
                      const arma::vec & censor,
                      const unsigned int & n,
-                     const unsigned int & p) {
+                     const unsigned int & p,
+                     double timerange = 0.09528851) {
   unsigned int i, l = 0;
   arma::mat temp_kermat;
 
@@ -86,7 +87,7 @@ Rcpp::List longest_c(const arma::rowvec & gamma,
   arma::field < arma::mat > Xbar_list(n);
   arma::field < arma::mat > KerexpgamZ_list(n * n);
   arma::field < arma::cube > Xmat_list(n * n), KerXexpgamZ_list(n * n),  XXtbar_list(n);
-  arma::vec temp_meas_time_i, temp_meas_time_l, temp_countprocess_l;
+  arma::vec temp_meas_time_i, temp_meas_time_i_temp,temp_meas_time_l, temp_countprocess_l;
   arma::vec censorind, temp_response;
 
   unsigned int j, k, Jn, Kn;
@@ -129,6 +130,8 @@ Rcpp::List longest_c(const arma::rowvec & gamma,
       censorind = conv_to < arma::vec > ::from(censor[l] > temp_meas_time_i);
       temp_KerexpgamZ.each_col() %= censorind;
       temp_countprocess_l = countprofun_C(temp_meas_time_l, temp_meas_time_i);
+
+      temp_countprocess_l -= countprofun_C(temp_meas_time_l, temp_meas_time_i-timerange);
 
       den_temp += sum(temp_KerexpgamZ, 1);
 
