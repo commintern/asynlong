@@ -55,7 +55,7 @@ asymptotic <-
            gammahat,
            n,
            p,
-           h) {
+           h,timerange=1) {
     Xbar_res <-
       Xbar_c(
         gammahat,
@@ -65,7 +65,7 @@ asymptotic <-
         covariates = covar_list,
         censor = censor_list,
         n,
-        p
+        p,timerange
       )
 
     #print(Xbar_res$XXtbar[[1]])
@@ -120,7 +120,8 @@ asymptotic <-
         Amat = H_A_res$Amat,
         censor = censor_list,
         n = n,
-        p = p
+        p = p,
+        timerange
       )
     #Sigmaest <- Sigmaest
     # Bmat <-
@@ -153,8 +154,74 @@ asymptotic <-
     # )
     vargammaest <- solve(H_A_res$Amat, Asymest$Vmat) %*% t(solve(H_A_res$Amat))
     #vargammaest <- solve(H_A_res$Amat, Vtemp) %*% t(solve(H_A_res$Amat))
-    varest <- solve(Asymest$Bmat, Asymest$Sigma) %*% t(solve(Asymest$Bmat))
+    varest <- solve(Asymest$Bmat, Asymest$Sigmat) %*% t(solve(Asymest$Bmat))
     return(rbind(as.vector(gammahat) + cbind(-1 * qnorm(0.975) * sqrt(diag(vargammaest)), qnorm(0.975) * sqrt(diag(vargammaest))),as.vector(thetahat) + cbind(-1 * qnorm(0.975) * sqrt(diag(varest)), qnorm(0.975) * sqrt(diag(varest)))))
+  }
+
+
+asymptotic_residual <-
+  function(kerMat,
+           meas_obs_list,
+           covar_list,
+           censor_list,
+           response_list,
+           thetahat,
+           gammahat,
+           n,
+           p,
+           h,timerange=1) {
+    Xbar_res <-
+      Xbar_c(
+        gammahat,
+        thetahat,
+        kerMat = kerMat,
+        meas_times = meas_obs_list,
+        covariates = covar_list,
+        censor = censor_list,
+        n,
+        p,timerange
+      )
+
+    H_A_res <-
+      H_A_c(
+        gamma = gammahat,
+        theta = thetahat,
+        kerMat = kerMat,
+        meas_times = meas_obs_list,
+        covariates = covar_list,
+        response = response_list,
+        Xbar = Xbar_res$Xbar,
+        XXtbar = Xbar_res$XXtbar,
+        XXtZbar = Xbar_res$XXtZbar,
+        S0 = Xbar_res$S0,
+        censor = censor_list,
+        n = n,
+        p = p
+      )
+
+
+    Asymest <-
+      long_asy_res_c(
+        gamma = gammahat,
+        theta = thetahat,
+        kerMat = kerMat,
+        meas_times = meas_obs_list,
+        covariates = covar_list,
+        Xbar = Xbar_res$Xbar,
+        XXtbar = Xbar_res$XXtbar,
+        response = response_list,
+        Hmat = H_A_res$Hmat,
+        Amat = H_A_res$Amat,
+        censor = censor_list,
+        n = n,
+        p = p,
+        timerange
+      )
+
+    vargammaest <- solve(H_A_res$Amat, Asymest$Vmat) %*% t(solve(H_A_res$Amat))
+    #vargammaest <- solve(H_A_res$Amat, Vtemp) %*% t(solve(H_A_res$Amat))
+    varest <- solve(Asymest$Bmat, Asymest$Sigmat) %*% t(solve(Asymest$Bmat))
+    return(list(rbind(as.vector(gammahat) + cbind(-1 * qnorm(0.975) * sqrt(diag(vargammaest)), qnorm(0.975) * sqrt(diag(vargammaest))),as.vector(thetahat) + cbind(-1 * qnorm(0.975) * sqrt(diag(varest)), qnorm(0.975) * sqrt(diag(varest)))),Asymest$Sigmat_residual_list,Xbar_res[[1]]))
   }
 
 #kernel <- function(x,h) exp(-2*abs(x/h))/h
@@ -331,7 +398,7 @@ purtur_CI_one <-
            response_list,
            n,
            p,
-           pur_weights) {
+           pur_weights,timerange) {
     #browser()
     gammaest_res <-
       gammaest_pur(kerMat,
@@ -352,14 +419,14 @@ purtur_CI_one <-
       censor = censor_list,
       n,
       p,
-      pur_weights
+      pur_weights,timerange
     )
 
     return(c(gammaest_res$x, longest_res[[1]]))
 
   }
 
-estasy_pur <- function(dataset, kerFun, h, n, p) {
+estasy_pur <- function(dataset, kerFun, h, n, p,timerange = 1) {
   # transform data
   covar_list <- lapply(dataset, function(x)
     x[["covariates"]])
@@ -386,7 +453,7 @@ estasy_pur <- function(dataset, kerFun, h, n, p) {
              response_list,
              n,
              p,
-             rep(1,n))
+             rep(1,n),timerange)
 
   CI_asym <- asymptotic(kerMat,
                         meas_obs_list,
@@ -396,7 +463,7 @@ estasy_pur <- function(dataset, kerFun, h, n, p) {
                         point_est[-(1:p)],
                         point_est[1:p],
                         n,
-                        p,h)
+                        p,h,timerange)
   # CIrep <- apply(matrix(rexp(500*n,rate=1),ncol=n),1,function(ww) purtur_CI_one(kerMat,
   #                                                                meas_obs_list,
   #                                                                covar_list,
@@ -422,3 +489,62 @@ estasy_pur <- function(dataset, kerFun, h, n, p) {
     )
   )
 }
+
+
+estasy_pur_res <- function(dataset, kerFun, h, n, p,timerange = 1) {
+  # transform data
+  covar_list <- lapply(dataset, function(x)
+    x[["covariates"]])
+  meas_obs_list <- lapply(dataset, function(x)
+    x[["meas_times"]])
+  obscov_times_list <-
+    lapply(dataset, function(x)
+      x[["obscov_times"]])
+  censor_list <- sapply(dataset, function(x)
+    x[["censoring"]])
+
+  response_list <- sapply(dataset, function(x)
+    x[["Y"]])
+
+  # R realization, slow
+  #kerMat <- apply(expand.grid(1:n,1:n),1, function(ind) kernelh(outermin_C(dataset[[ind[2]]][[2]],dataset[[ind[1]]][[4]]),h))
+
+  kerMat <- kerMatgen_C(meas_obs_list, obscov_times_list, h)
+
+  point_est <- purtur_CI_one(kerMat,
+                             meas_obs_list,
+                             covar_list,
+                             censor_list,
+                             response_list,
+                             n,
+                             p,
+                             rep(1,n),timerange)
+
+  CI_asym <- asymptotic_residual(kerMat,
+                        meas_obs_list,
+                        covar_list,
+                        censor_list,
+                        response_list,
+                        point_est[-(1:p)],
+                        point_est[1:p],
+                        n,
+                        p,h,timerange)
+
+
+  CIres <- CI_asym[[1]]
+
+  residuals <- CI_asym[[2]]
+
+  rm(kerMat)
+  return(
+    list(
+      est = point_est,
+      CI_theta = CI_asym,
+      CI_pur = CIres,
+      residuals=residuals,
+      Xbar = CI_asym[[3]]
+    )
+  )
+}
+
+

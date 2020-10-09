@@ -15,7 +15,7 @@ using namespace std;
  * ===========================================
  */
 
-// [[Rcpp::export]]
+
 arma::vec countprofun_C(const arma::vec& counttime, const arma::vec& externalTime){
   arma::uword i,j;
   arma::uword Nc = counttime.size();
@@ -41,6 +41,41 @@ arma::vec countprofun_C(const arma::vec& counttime, const arma::vec& externalTim
         }
       } else {
         res(i) = j;
+        ++i;
+      }
+    }
+
+  }
+  return res;
+}
+
+
+double countprofun_C(const arma::vec& counttime, const double& externalTime){
+  arma::uword i,j;
+  arma::uword Nc = counttime.size();
+  arma::uword Nt = 1;
+  //arma::uword Nt = externalTime.size();
+  double res;
+  j = 0;
+  i = 0;
+  while((i<Nt)&&(j<Nc)){
+    if(j>=Nc-1){
+      if(counttime(j)<externalTime){
+        res = Nc;
+      } else {
+        res = Nc-1;
+      }
+      i++;
+    } else {
+      if(counttime(j)<externalTime){
+        if(counttime(j+1)>externalTime){
+          res = j+1;
+          ++i;
+        } else {
+          ++j;
+        }
+      } else {
+        res = j;
         ++i;
       }
     }
@@ -78,7 +113,7 @@ Rcpp::List longest_c(const arma::rowvec & gamma,
                      const arma::vec & censor,
                      const unsigned int & n,
                      const unsigned int & p,
-                     double timerange = 0.09528851) {
+                     double timerange = 1) {
   unsigned int i, l = 0;
   arma::mat temp_kermat;
 
@@ -209,7 +244,8 @@ Rcpp::List longest_pur_c(const arma::rowvec & gamma,
                      Rcpp::ListOf < NumericVector > & dlambda,
                      const arma::vec & censor,
                      const unsigned int & n,
-                     const unsigned int & p, const arma::vec& pur_weights) {
+                     const unsigned int & p, const arma::vec& pur_weights,
+                     double timerange = 1) {
   unsigned int i, l = 0;
   arma::mat temp_kermat;
 
@@ -261,6 +297,7 @@ Rcpp::List longest_pur_c(const arma::rowvec & gamma,
       censorind = conv_to < arma::vec > ::from(censor[l] > temp_meas_time_i);
       temp_KerexpgamZ.each_col() %= censorind;
       temp_countprocess_l = countprofun_C(temp_meas_time_l, temp_meas_time_i);
+      temp_countprocess_l -= countprofun_C(temp_meas_time_l, temp_meas_time_i-timerange);
 
       den_temp += sum(temp_KerexpgamZ, 1);
 

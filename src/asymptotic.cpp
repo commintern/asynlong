@@ -17,7 +17,8 @@ Rcpp::List Xbar_c(const arma::rowvec &gamma,
                   Rcpp::ListOf<NumericMatrix> &covariates,
                   const arma::vec &censor,
                   const unsigned int &n,
-                  const unsigned int &p)
+                  const unsigned int &p,
+                  double timerange = 1)
 {
   unsigned int i, l = 0;
   arma::mat temp_kermat, temp_cov;
@@ -82,9 +83,10 @@ Rcpp::List Xbar_c(const arma::rowvec &gamma,
             if (abs(temp_kermat(j, k)) > 1e-10)
             {
               X_temp.head(p) = temp_cov.col(k);
-              temp_uvec = find(temp_meas_time_l >= temp_meas_time_i(j), 1);
+              temp_uvec = countprofun_C(temp_meas_time_l, temp_meas_time_i(j));
+              temp_uvec -= countprofun_C(temp_meas_time_l, temp_meas_time_i(j)-timerange);
 
-              X_temp(p) = temp_uvec.n_elem == 0 ? temp_meas_time_l.n_elem : temp_uvec(0);
+              X_temp(p) = temp_uvec(0);
               // cout << temp_kermat(j, k) * exp(gamma * temp_cov.col(k)) <<endl;
               weight = as_scalar(temp_kermat(j, k) * exp(gamma * temp_cov.col(k)));
 
@@ -242,7 +244,8 @@ Rcpp::List long_asy_c(const arma::rowvec &gamma,
                       const arma::mat &Amat,
                       const arma::vec &censor,
                       const unsigned int &n,
-                      const unsigned int &p)
+                      const unsigned int &p,
+                      double timerange = 1)
 {
 
   //cout << "HHH" <<endl;
@@ -328,9 +331,14 @@ Rcpp::List long_asy_c(const arma::rowvec &gamma,
         {
 
           X_temp.head(p) = temp_cov.col(k);
-          //temp_uvec = find(temp_meas_time_l >= temp_meas_time_i(j),1);
 
-          X_temp(p) = j;
+          temp_uvec = countprofun_C(temp_meas_time_i, temp_meas_time_i(j));
+          temp_uvec -= countprofun_C(temp_meas_time_i, temp_meas_time_i(j)-timerange);
+
+          X_temp(p) = temp_uvec(0);
+
+
+          //X_temp(p) = j;
 
           //cout << "X_temp: " << X_temp.t() <<endl;
 
@@ -390,6 +398,178 @@ Rcpp::List long_asy_c(const arma::rowvec &gamma,
                             Rcpp::Named("Vmat") = V_temp);
 }
 
+
+// [[Rcpp::export]]
+Rcpp::List long_asy_res_c(const arma::rowvec &gamma,
+                      const arma::rowvec &theta,
+                      Rcpp::ListOf<NumericMatrix> &kerMat,
+                      Rcpp::ListOf<NumericVector> &meas_times,
+                      Rcpp::ListOf<NumericMatrix> &covariates,
+                      Rcpp::ListOf<NumericMatrix> &Xbar,
+                      Rcpp::ListOf<NumericVector> &XXtbar,
+                      Rcpp::ListOf<NumericVector> &response,
+                      const arma::mat &Hmat,
+                      const arma::mat &Amat,
+                      const arma::vec &censor,
+                      const unsigned int &n,
+                      const unsigned int &p,
+                      double timerange = 1)
+{
+
+  //cout << "HHH" <<endl;
+  unsigned int i = 0;
+  arma::mat temp_kermat, temp_cov, Xbar_temp, temp_response;
+  arma::vec X_temp, temp_part1, temp_part2, temp_part3 = vec(p + 1);
+  arma::mat temp_X_diff = mat(p + 1, p + 1);
+  arma::cube XXtbar_temp;
+  //arma::mat D_temp = mat(p,p,arma::fill::zeros);
+  //arma::mat P_temp = mat(p+1,p,arma::fill::zeros);
+  arma::rowvec expgammaZ;
+  //arma::field<arma::rowvec> expgamZ_list(n);
+  //Rcpp::List Rs_list(n);
+  //arma::field<arma::mat> KerexpgamZ_list(n * n);
+
+  arma::mat V_temp = mat(p, p, arma::fill::zeros);
+
+
+  arma::mat res_temp_ind = vec(p + 1);
+  arma::mat Bmat = mat(p + 1, p + 1, arma::fill::zeros);
+  Rcpp::List Sigmat_residual_list(n);
+  arma::mat Sigmat = mat(p + 1, p + 1, arma::fill::zeros);
+  arma::vec temp_meas_time_i, temp_meas_time_l, temp_countprocess_l,gmu_temp, temp_lambda ;
+
+  arma::vec censorind, temp_S0;
+
+  arma::uvec temp_uvec;
+
+  arma::uvec temp_counting;
+
+  arma::mat HAi = Hmat * inv(Amat);
+
+  unsigned int j, k, Jn, Kn;
+  X_temp = vec(p + 1, arma::fill::zeros);
+
+  temp_part3 = vec(p, arma::fill::zeros);
+
+  arma::vec zdiff = vec(n,arma::fill::zeros);
+
+  double weight;
+  for (i = 0; i < n; i++)
+  {
+    //cout << "i: " << i << endl;
+    temp_meas_time_i = vec(meas_times[i].begin(), meas_times[i].size(), false);
+    temp_response = vec(response[i].begin(), response[i].size(), false);
+    // temp_lambda = vec(asylambda[i].begin(), lambda[i].size(), false);
+    // gmu_temp = vec(gmu[i].begin(), gmu[i].size(), false);
+    //temp_dlambda = vec(dlambda[i].begin(), dlambda[i].size(), false);
+    //temp_mu0 = vec(mu0[i].begin(), mu0[i].size(), false);
+
+    //temp_Rs = vec(Rs[i].begin(), Rs[i].size(), false);
+
+    temp_cov = mat(covariates[i].begin(), covariates[i].nrow(),
+                   covariates[i].ncol(), false);
+    temp_kermat = mat(kerMat[i * n + i].begin(), kerMat[i * n + i].nrow(),
+                      kerMat[i * n + i].ncol(), false);
+
+    Xbar_temp = mat(Xbar[i].begin(), Xbar[i].nrow(),
+                    Xbar[i].ncol(), false);
+
+    Jn = temp_meas_time_i.size();
+    Kn = temp_cov.n_cols;
+
+    XXtbar_temp = arma::cube(XXtbar[i].begin(), p + 1, p + 1, Jn, false);
+
+    temp_part1 = vec(p + 1, arma::fill::zeros);
+    temp_part2 = vec(p, arma::fill::zeros);
+
+
+
+
+
+
+    for (j = 0; j < Jn; j++)
+    {
+
+      //cout << "j: " << j << endl;
+
+      for (k = 0; k < Kn; k++)
+      {
+        //cout << " k: " << k << "/" << Kn << endl;
+        //cout << "Kernal" << temp_kermat(j, k) << endl;
+
+        if (abs(temp_kermat(j, k)) > 1e-10)
+        {
+
+          X_temp.head(p) = temp_cov.col(k);
+
+          temp_uvec = countprofun_C(temp_meas_time_i, temp_meas_time_i(j));
+          temp_uvec -= countprofun_C(temp_meas_time_i, temp_meas_time_i(j)-timerange);
+
+          X_temp(p) = temp_uvec(0);
+
+
+          //X_temp(p) = j;
+
+          //cout << "X_temp: " << X_temp.t() <<endl;
+
+          //cout << "XXtbar_tem: " << XXtbar_temp.slice(j) <<endl;
+
+          temp_X_diff = XXtbar_temp.slice(j) - Xbar_temp.row(j).t() * Xbar_temp.row(j);
+
+          Bmat = Bmat - temp_kermat(j, k) *  temp_X_diff;
+
+          //temp_X_diff = X_temp - trans(Xbar_temp.row(j));
+          ////================= PART 1 ===================////
+          //cout << "PART1";
+          //weight = 1-as_scalar(exp(gamma * X_temp.head(p)))*temp_lambda.at(j);
+          weight = 1;
+
+
+          temp_part1 = temp_part1 + temp_kermat(j, k) * (temp_response(j) * (X_temp - Xbar_temp.row(j).t()) -
+            temp_X_diff * theta.t())*weight;
+
+          //temp_part1 = temp_part1 + temp_kermat(j, k) *(temp_response(j)-(temp_response(j)+
+          //  as_scalar(theta * (X_temp - Xbar_temp.row(j).t())))*as_scalar(exp(gamma * X_temp.head(p)))*temp_lambda.at(j));
+
+          temp_part2 = temp_part2 + temp_kermat(j, k) * (X_temp.head(p) - Xbar_temp.row(j).head(p).t())*weight;
+
+          // Rcpp::Rcout << "i: " << setw(2) << i << " j: " << setw(2) << j <<
+          //   " k: " << setw(2) << k << " ker: " << temp_kermat(j, k);
+          // Rcpp::Rcout << " part2: " << weight<<  endl;
+
+
+
+
+        }
+      }
+      //cout << "end" << endl;
+    }
+
+
+
+    //cout << temp_part1 << endl;
+    //cout << temp_part2 << endl;
+
+
+    res_temp_ind = temp_part1 + HAi * temp_part2;
+    V_temp = V_temp + temp_part2 * temp_part2.t();
+    //zdiff(i) = as_scalar(temp_part2);
+    //temp_part3 += temp_part2 * temp_part2;
+    //res_temp_ind  = temp_part1;
+    //cout << "Z: ";
+    //cout << temp_part2.t() << endl;
+    Sigmat_residual_list[i] = res_temp_ind;
+    Sigmat = Sigmat + res_temp_ind * res_temp_ind.t();
+  }
+  //cout <<"============:" << temp_part3 << endl;
+  Sigmat = Sigmat;
+  Bmat = Bmat;
+  V_temp = V_temp;
+  return Rcpp::List::create(Rcpp::Named("Sigmat") = Sigmat,
+                            Rcpp::Named("Bmat") = Bmat,
+                            Rcpp::Named("Vmat") = V_temp,
+                            Rcpp::Named("Sigmat_residual_list") = Sigmat_residual_list);
+}
 
 // // [[Rcpp::export]]
 // Rcpp::List Rs_c(const arma::rowvec & gamma,
@@ -732,3 +912,4 @@ Rcpp::List long_asy_c(const arma::rowvec &gamma,
 //
 //   return res;
 // }
+//

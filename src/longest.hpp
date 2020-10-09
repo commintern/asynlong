@@ -6,6 +6,7 @@
 
 
 arma::vec countprofun_C(const arma::vec& counttime, const arma::vec& externalTime);
+double countprofun_C(const arma::vec& counttime, const double& externalTime);
 
 arma::cube Xgen_C(const arma::mat& covMat, const arma::vec& countprocess, const unsigned int& p);
 #endif
